@@ -91,12 +91,12 @@ function parseTemplate(template, tags) {
   }
   let lineHasNonSpace = false
   const sections = []
-  const tokens = []
+  const tokens = [] // token 数组
   let spaces = [] // 存储在当前行中每个空格的索引
   let hasTag = false // 当前行是否有标签 {{}}
   let nonSpace = false // 当前行是否没有空格
   let indentation = ''
-  let tagIndex = 0
+  let tagIndex = 0 // 每一行文本所遇到的 {{}} 数量
 
   function stripSpace() {
     if (hasTag && !nonSpace) {
@@ -137,20 +137,20 @@ function parseTemplate(template, tags) {
 
   let start
   let type
-  let value
-  let chr
-  let token
+  let value // {{ 或 }} 前的文本，比如：'hello, {{name}}' 对应的文本是 hello, 和 name
+  let chr // 文本中每一个字符
+  let token // 存储的信息标识
   let openSection
-  while(!scanner.eos()) { // 循环使扫描器扫描完成，这里的 tag 以默认值 ['{{', '}}'] 为例
+  while (!scanner.eos()) { // 循环使扫描器扫描完成，这里的 tag 以默认值 ['{{', '}}'] 为例
     start = scanner.pos
 
     value = scanner.scanUntil(openingTagRe) // 获取 {{ 前的文本
 
-    if(value) {
-      for(let i = 0, valueLength = value.length; i < valueLength; ++i) {
-        chr = value.charAt(i)
+    if (value) {
+      for (let i = 0, valueLength = value.length; i < valueLength; ++i) {
+        chr = value.charAt(i) // 获取当前字符
 
-        if(isWhitespace(chr)) { // 如果该字符为空白字符
+        if (isWhitespace(chr)) { // 如果该字符为空白字符
           spaces.push(tokens.length)
           indentation += chr
         } else {
@@ -162,7 +162,7 @@ function parseTemplate(template, tags) {
         tokens.push(['text', chr, start, start + 1])
         start += 1
 
-        if(chr === '\n') { // 如果 chr 是一个换行符，说明当前行已经遍历结束，重置新的行
+        if (chr === '\n') { // 如果 chr 是一个换行符，说明当前行已经遍历结束，重置新的行
           stripSpace()
           indentation = ''
           tagIndex = 0
@@ -170,6 +170,42 @@ function parseTemplate(template, tags) {
         }
       }
     }
+
+    if (!scanner.scan(openingTagRe)) { // 如果找不到 {{ ，返回
+      break
+    }
+
+    hasTag = true // 否则该行一定有 {{ 标签
+
+    type = scanner.scan(tagRe) || 'name' // 获取标签的类型，要么是特殊标签，要么是普通标签 {{name}}
+    scanner.scan(whiteRe) // 跳过空格
+
+    // 根据 type 进行处理
+    if (type === '=') {
+      value = scanner.scanUntil(equalsRe)
+      scanner.scan(equalsRe)
+      scanner.scanUntil(closingTagRe)
+    } else if (type === '{') { // type 为 { 说明是 {{{name}}}，使得 name 中的值跳过转义，如 name = '<Tom'，那么直接输出 '<Tom'，而 {{name}} 会输出 '&lt;Tom'
+      value = scanner.scanUntil(closingCurlyRe) // 获取 {{{name}}} 中的 name
+      scanner.scan(curlyRe) // 跳过 }
+      scanner.scanUntil(closingTagRe) // 跳过 }}
+      type = '&'
+    } else {
+      value = scanner.scanUntil(closingTagRe) // 收集 {{name}} 中的 name
+    }
+
+    if(!scanner.scan(closingTagRe)) { // 如果没有找到 }}，那么说明标签不匹配，抛出错误
+      throw new Error('Unclosed tag at ' + scanner.pos)
+    }
+
+    if(type === '>') {
+      token = [type, value, start, scanner.pos, indentation, tagIndex, lineHasNonSpace]
+    } else {
+      token = [type, value, start, scanner.pos]
+    }
+    tagIndex++
+
+    tokens.push(token)
   }
 }
 
@@ -214,7 +250,7 @@ class Scanner {
   /**
    * 扫描 tag，如果 tag 在 tail 开头位置那么把 tag 匹配的字符截取并返回，否则返回空字符。
    * 
-   * @param {RegExp} re tag 的正则表达式
+   * @param {RegExp | string} re tag 的正则表达式或字符串
    * @returns {string}
    */
   scan(re) {
@@ -245,7 +281,7 @@ class Scanner {
    *    对于第二种情况，有 '{{hello}}' -> ''
    *    对于第三种情况，有 'hello，{{hi}}' -> 'hello，'
    * 
-   * @param {RegExp} re tag 的正则表达式
+   * @param {RegExp | string} re tag 的正则表达式或字符串
    * @returns {string}
    */
   scanUntil(re) {

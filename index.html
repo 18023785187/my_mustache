@@ -1,19 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
 </head>
+
 <body>
-    <div>666</div>
-    <script src="./mustache.js"></script>
-    <script>
-        const obj = {
-            html: '<div>666</div>'
+  <div>666</div>
+  <script src="./mustache.js"></script>
+  <script>
+    const obj = {
+      html: '<div>666</div>'
+    }
+    console.log(mustache.render(
+      '<div>       \ndasdas{{#       obj               }}{{>user}}{{/obj}}         </div>',
+      {
+        obj: {
+          user: 'asdadsasasda'
         }
-        console.log(mustache.render('<div>       \ndasdas{{        name               }}         </div>', { name: '黄' }))
-    </script>
+      },
+      {
+        user: 'asdadsasasda'
+      }))
+  </script>
 </body>
+
 </html>

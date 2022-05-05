@@ -245,7 +245,7 @@ function parseTemplate(template, tags) {
 
   if (openSection)
     throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos);
-console.log(tokens)
+
   return nestTokens(squashTokens(tokens));
 }
 
