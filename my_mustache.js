@@ -89,25 +89,25 @@ function parseTemplate(template, tags) {
   if (!template) {
     return []
   }
-  let lineHasNonSpace = false
-  const sections = []
+  let lineHasNonSpace = false // 当前行是否有非空格
+  const sections = [] // 用于存储 {{#names}}、{{^names}} 标记
   const tokens = [] // token 数组
   let spaces = [] // 存储在当前行中每个空格的索引
   let hasTag = false // 当前行是否有标签 {{}}
-  let nonSpace = false // 当前行是否没有空格
+  let nonSpace = false // 是否有非空格
   let indentation = ''
   let tagIndex = 0 // 每一行文本所遇到的 {{}} 数量
 
   function stripSpace() {
-    if (hasTag && !nonSpace) {
+    if (hasTag && !nonSpace) { // 如果检测到有标签且全是空格
       while (spaces.length)
         delete tokens[spaces.pop()]
     } else {
       spaces = []
     }
 
-    hasTag = false
-    nonSpace = false
+    hasTag = false // 重置
+    nonSpace = false // 重置
   }
 
   let openingTagRe
@@ -135,16 +135,16 @@ function parseTemplate(template, tags) {
 
   const scanner = new Scanner(template)
 
-  let start
-  let type
+  let start // 每次扫描一对 {{}} 时扫描器 scanner 的起始指针
+  let type // 每个标签的类型，后面会根据类型去处理 token
   let value // {{ 或 }} 前的文本，比如：'hello, {{name}}' 对应的文本是 hello, 和 name
   let chr // 文本中每一个字符
   let token // 存储的信息标识
-  let openSection
-  while (!scanner.eos()) { // 循环使扫描器扫描完成，这里的 tag 以默认值 ['{{', '}}'] 为例
+  let openSection // 每次遇到 {{/names}} 时从 sections 弹出开口标签
+  while (!scanner.eos()) { // 循环使扫描器扫描完成，这里的 tag 以默认值 ['{{', '}}'] 为例，每次循环都会扫描出一对 {{}}
     start = scanner.pos
 
-    value = scanner.scanUntil(openingTagRe) // 获取 {{ 前的文本
+    value = scanner.scanUntil(openingTagRe) // 获取 {{ 前或全部文本
 
     if (value) {
       for (let i = 0, valueLength = value.length; i < valueLength; ++i) {
@@ -153,7 +153,7 @@ function parseTemplate(template, tags) {
         if (isWhitespace(chr)) { // 如果该字符为空白字符
           spaces.push(tokens.length)
           indentation += chr
-        } else {
+        } else { // 如果有非空白字符
           nonSpace = true
           lineHasNonSpace = true
           indentation += ' '
@@ -194,18 +194,44 @@ function parseTemplate(template, tags) {
       value = scanner.scanUntil(closingTagRe) // 收集 {{name}} 中的 name
     }
 
-    if(!scanner.scan(closingTagRe)) { // 如果没有找到 }}，那么说明标签不匹配，抛出错误
+    if (!scanner.scan(closingTagRe)) { // 如果没有找到 }}，那么说明标签不匹配，抛出错误
       throw new Error('Unclosed tag at ' + scanner.pos)
     }
 
-    if(type === '>') {
+    if (type === '>') {
       token = [type, value, start, scanner.pos, indentation, tagIndex, lineHasNonSpace]
     } else {
       token = [type, value, start, scanner.pos]
     }
-    tagIndex++
+    tagIndex++ // 当前行遇到的标签数加一
 
     tokens.push(token)
+
+    if (type === '#' || type === '^') { // 如果遇到 {{#names}} 或 {{^names}}，
+      sections.push(token) // 把 token 推入 sections 数组。
+    } else if (type === '/') { // 如果遇到 {{/names}}，
+      openSection = sections.pop() // 把与之匹配的 {{#names}} 弹出。
+
+      if (!openSection) { // 如果没有 {{#names}}，说明闭口标签没有匹配的开口标签，抛出错误
+        throw new Error('Unopened section "' + value + '" at ' + start)
+      }
+
+      if (openSection[1] !== value) { // 如果两者变量不匹配，例如：{{#names}}{{/ages}}，说明不符合规则，抛出错误
+        throw new Error('Unclosed section "' + openSection[1] + '" at ' + start)
+      }
+    } else if (type === 'name' || type === '{' || type === '&') {
+      nonSpace = true
+    } else if (type === '=') {
+      compileTags(value)
+    }
+
+    stripSpace()
+
+    openSection = sections.pop()
+
+    if (openSection) { // 每次扫描器循环都要确保 sections 栈为空，因为每次循环都只会收集一对标签，收集 {{#names}} 后必然需要 {{/names}} 使 {{#names}} 出栈
+      throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos)
+    }
   }
 }
 
