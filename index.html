@@ -12,19 +12,26 @@
   <div>666</div>
   <script src="./mustache.js"></script>
   <script>
-    const obj = {
-      html: '<div>666</div>'
-    }
-    console.log(mustache.render(
-      '<div>       \ndasdas{{#       obj               }}{{>user}}{{/obj}}         </div>',
-      {
-        obj: {
-          user: 'asdadsasasda'
+    const baseTemp =
+      `<span>Names</span>
+{{#names}}
+{{> user}}
+{{/names}}`
+    const userTemp = '<strong>{{name}}</strong>'
+
+    console.log(
+      mustache.render(
+        baseTemp,
+        {
+          names: [
+            { name: 'Tom' }
+          ]
+        },
+        {
+          user: userTemp
         }
-      },
-      {
-        user: 'asdadsasasda'
-      }))
+      )
+    )
   </script>
 </body>
 

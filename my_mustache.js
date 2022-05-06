@@ -219,9 +219,9 @@ function parseTemplate(template, tags) {
       if (openSection[1] !== value) { // 如果两者变量不匹配，例如：{{#names}}{{/ages}}，说明不符合规则，抛出错误
         throw new Error('Unclosed section "' + openSection[1] + '" at ' + start)
       }
-    } else if (type === 'name' || type === '{' || type === '&') {
+    } else if (type === 'name' || type === '{' || type === '&') { // 这种情况为普通标签
       nonSpace = true
-    } else if (type === '=') {
+    } else if (type === '=') { // 如果 type 为 = ，说明标签需要转换，例如 {{=<% %>=}} 使 {{}} 转为 <%%>
       compileTags(value)
     }
 
