@@ -1,4 +1,7 @@
-
+/**
+ * mustache 源码重写 ES6 + 注释版
+ * http://github.com/18023785187/my_mustache
+ */
 
 const objectToString = Object.prototype.toString
 const isArray = Array.isArray || function isArrayPolyfill(object) {
@@ -191,7 +194,7 @@ function parseTemplate(template, tags) {
     type = scanner.scan(tagRe) || 'name' // 获取标签的类型，要么是特殊标签，要么是普通标签 {{name}}
     scanner.scan(whiteRe) // 跳过空格
 
-    // 根据 type 进行处理
+    // 根据 type 收集 value
     if (type === '=') {
       value = scanner.scanUntil(equalsRe)
       scanner.scan(equalsRe)
@@ -235,15 +238,55 @@ function parseTemplate(template, tags) {
     } else if (type === '=') { // 如果 type 为 = ，说明标签需要转换，例如 {{=<% %>=}} 使 {{}} 转为 <%%>
       compileTags(value)
     }
+  }
 
-    stripSpace()
+  stripSpace()
 
-    openSection = sections.pop()
+  openSection = sections.pop()
 
-    if (openSection) { // 每次扫描器循环都要确保 sections 栈为空，因为每次循环都只会收集一对标签，收集 {{#names}} 后必然需要 {{/names}} 使 {{#names}} 出栈
-      throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos)
+  if (openSection) { // 扫描完成，所有的 {{#names}} 都应该被出栈，如果有剩余的 {{#names}} 则说明剩余的开闭标签没有成对出现
+    throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos)
+  }
+
+  return nestTokens(squashTokens(tokens))
+}
+
+/**
+ * 把连续的 token 合并到一个 token 中。
+ * 
+ * 例子：
+ *  const tokens = [['text', 'T', 0, 1], ['text', 'o', 1, 2], ['text', 'm', 2, 3]]
+ * 
+ *  squashTokens(tokens) // [['text', 'Tom', 0, 3]]
+ * 
+ * @param {token[]} tokens 
+ * @returns {token[]}
+ */
+function squashTokens(tokens) {
+  const squashedTokens = [] // 合并完成后的 tokens
+
+  let token
+  let lastToken // 合并的 token
+  for (let i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+    token = tokens[i]
+
+    if (token) { // token 并非一定存在，在清除空格 token 的情况下当前位置将会是 empty
+      if (token[0] === 'text' && lastToken && lastToken[0] === 'text') { // 如果当前 token 和合并 token 都是普通文本，那么进行合并操作
+        // 一个普通的 token: ['text', word, startIdx, endIdx]
+        lastToken[1] += token[1]
+        lastToken[3] = token[3]
+      } else {
+        squashedTokens.push(token)
+        lastToken = token
+      }
     }
   }
+
+  return squashedTokens
+}
+
+function nestTokens(tokens) {
+
 }
 
 /**

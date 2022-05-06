@@ -12,12 +12,6 @@
   <div>666</div>
   <script src="./mustache.js"></script>
   <script>
-    const baseTemp =
-      `<span>Names</span>
-{{#names}}
-{{> user}}
-{{/names}}`
-    const userTemp = '<strong>{{name}}</strong>'
 
     console.log(
       mustache.render(
