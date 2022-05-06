@@ -92,27 +92,38 @@ function parseTemplate(template, tags) {
   let lineHasNonSpace = false // 当前行是否有非空格
   const sections = [] // 用于存储 {{#names}}、{{^names}} 标记
   const tokens = [] // token 数组
-  let spaces = [] // 存储在当前行中每个空格的索引
+  let spaces = [] // 存储在当前行中每个空格的 token 索引，当遇到 {{#names}} 时且当前项全是空格时，会把存储的索引对应的 token 全部删除
   let hasTag = false // 当前行是否有标签 {{}}
   let nonSpace = false // 是否有非空格
   let indentation = ''
   let tagIndex = 0 // 每一行文本所遇到的 {{}} 数量
 
+  /**
+   * 当遇到 {{#names}} 且当前行全部为空格时，会把所有空格移除。
+   * 
+   * 例如 : 
+   *  template: '    {{#names}}    \n{{name}}{{/names}}'
+   *  view: { names: { name: 'Tom' } }
+   * 
+   *  output: 'Tom'
+   * 
+   * {{#names}} 前后的空格已被移除，但当 {{#names}} 所在的当前行如果有非空格字符，这个规则将不适用。
+   */
   function stripSpace() {
-    if (hasTag && !nonSpace) { // 如果检测到有标签且全是空格
-      while (spaces.length)
+    if (hasTag && !nonSpace) { // 如果检测到有标签且全是空格，这里的标签只能是 {{#names}}
+      while (spaces.length) // 删除 tokens 中所有空格 token
         delete tokens[spaces.pop()]
     } else {
-      spaces = []
+      spaces = [] // 重置
     }
 
     hasTag = false // 重置
     nonSpace = false // 重置
   }
 
-  let openingTagRe
-  let closingTagRe
-  let closingCurlyRe
+  let openingTagRe // 开口标签正则
+  let closingTagRe // 闭口标签正则
+  let closingCurlyRe // 闭口标签加 { 正则，比如闭口标签为 }}，那么该正则为 }}}
   /**
    * 处理 tags，根据 tags 生成对应的正则表达式，tags 必须为字符串或数组，例如 ['{{', '}}']
    * @param {string | [string, string]} tagsToCompile 
@@ -131,9 +142,9 @@ function parseTemplate(template, tags) {
     closingCurlyRe = new RegExp('\\s*' + escapeRegExp('}' + tagsToCompile[1])) // /\s*\}\}\}/
   }
 
-  compileTags(tags || mustache.tags)
+  compileTags(tags || mustache.tags) // 初始编译一个 tags 确定标签的样式
 
-  const scanner = new Scanner(template)
+  const scanner = new Scanner(template) // 创建扫描器，下面循环将围绕扫描器收集 token
 
   let start // 每次扫描一对 {{}} 时扫描器 scanner 的起始指针
   let type // 每个标签的类型，后面会根据类型去处理 token
@@ -150,10 +161,10 @@ function parseTemplate(template, tags) {
       for (let i = 0, valueLength = value.length; i < valueLength; ++i) {
         chr = value.charAt(i) // 获取当前字符
 
-        if (isWhitespace(chr)) { // 如果该字符为空白字符
+        if (isWhitespace(chr)) { // 如果该字符为空白字符，记录该空白 token 的位置
           spaces.push(tokens.length)
           indentation += chr
-        } else { // 如果有非空白字符
+        } else { // 如果有非空白字符，记录当前行有非空格字符
           nonSpace = true
           lineHasNonSpace = true
           indentation += ' '

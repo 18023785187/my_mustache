@@ -121,12 +121,14 @@ function parseTemplate(template, tags) {
   // Strips all whitespace tokens array for the current line
   // if there was a {{#tag}} on it and otherwise only space.
   function stripSpace() {
+    console.log(hasTag && !nonSpace, hasTag, nonSpace, spaces, template, [...tokens])
     if (hasTag && !nonSpace) {
       while (spaces.length)
         delete tokens[spaces.pop()];
     } else {
       spaces = [];
     }
+    console.log(hasTag && !nonSpace, hasTag, nonSpace, spaces, template, [...tokens])
 
     hasTag = false;
     nonSpace = false;

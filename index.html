@@ -21,14 +21,11 @@
 
     console.log(
       mustache.render(
-        baseTemp,
+        ' {{#name}} \n{{age}}{{/name}}',
         {
-          names: [
-            { name: 'Tom' }
-          ]
-        },
-        {
-          user: userTemp
+          name: {
+            age: 18
+          }
         }
       )
     )
