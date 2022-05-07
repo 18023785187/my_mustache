@@ -305,10 +305,9 @@ function nestTokens(tokens) {
         collector.push(token);
     }
   }
-
+  console.log(nestedTokens)
   return nestedTokens;
 }
-
 /**
  * A simple string scanner that is used by the template parser to find
  * tokens in template strings.

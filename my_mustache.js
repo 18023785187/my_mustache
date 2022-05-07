@@ -248,11 +248,13 @@ function parseTemplate(template, tags) {
     throw new Error('Unclosed section "' + openSection[1] + '" at ' + scanner.pos)
   }
 
+  // return tokens
+  return squashTokens(tokens)
   return nestTokens(squashTokens(tokens))
 }
 
 /**
- * 把连续的 token 合并到一个 token 中。
+ * 把连续序号的 token 合并到一个 token 中。
  * 
  * 例子：
  *  const tokens = [['text', 'T', 0, 1], ['text', 'o', 1, 2], ['text', 'm', 2, 3]]
@@ -285,8 +287,49 @@ function squashTokens(tokens) {
   return squashedTokens
 }
 
+/**
+ * 对于类型为 #、^ 的 token 都会有对应的儿子 token，该函数的作用就是把散列的儿子 token 收集起来存储到其父亲 token 中。
+ * 
+ * 例子：
+ *  const tokens = [['#', 'a', 0, 6], ['name', 'b', 6, 11], ['/', 'a', 11, 17]]
+ * 
+ *  nestTokens(tokens) // [['#', 'a', 0, 6, ['name', 'b', 6, 11], 11]]
+ * 
+ * @param {token[]} tokens 
+ * @returns {token[]}
+ */
 function nestTokens(tokens) {
+  const nestedTokens = [] // 结果 tokens
+  let collector = nestedTokens // 当前操作的 token
+  const sections = [] // 存储操作的 token 的栈，栈顶元素指向当前操作的 token 的父亲 token 或 nestedTokens
 
+  let token
+  let section
+  for (let i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+    token = tokens[i]
+
+    switch (token[0]) { // type
+      /**
+       * 如果是开口标签标记，那么他应该有儿子 token，需要对该 token 进行处理
+       * [type, key, startIdx, childrenStartIdx, children, endIdx]
+       */
+      case '#':
+      case '^':
+        collector.push(token)
+        sections.push(token)
+        collector = token[4] = [] // 为当前 token 开辟存储儿子 token 的空间，同时 collector 指向儿子 token
+        break
+      case '/': // 如果遇到结束标签标记，说明当前 collector 已处理完毕
+        section = sections.pop()
+        section[5] = token[2]
+        collector = sections.length > 0 ? sections[sections.length - 1][4] : nestedTokens
+        break
+      default:
+        collector.push(token)
+    }
+  }
+
+  return nestedTokens
 }
 
 /**
@@ -386,3 +429,5 @@ class Scanner {
     return match
   }
 }
+
+console.log(parseTemplate('{{#a}}{{b}}{{/a}}', ['{{', '}}']))
