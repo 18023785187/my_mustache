@@ -492,9 +492,9 @@ class Context {
       let intermediateValue, names, index, lookupHit = false
 
       while (context) {
-        if (name.indexOf('.') > 0) {
-          intermediateValue = context.view
-          names = name.split('.')
+        if (name.indexOf('.') > 0) { // name 为 'a.b.c' 时，需要循环找到目标值
+          intermediateValue = context.view // 初始化 intermediateValue
+          names = name.split('.') // 把 'a.b.c' 拆成 ['a', 'b', 'c']
           index = 0
 
           while (intermediateValue != null && index < names.length) {
@@ -504,7 +504,11 @@ class Context {
                 || primitiveHasOwnProperty(intermediateValue, names[index])
               )
             }
+
+            intermediateValue = intermediateValue[names[index++]]
           }
+        } else {
+
         }
       }
     }

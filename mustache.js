@@ -239,7 +239,7 @@ function parseTemplate(template, tags) {
   }
 
   stripSpace();
-  
+
   // Make sure there are no open sections when we're done.
   openSection = sections.pop();
 
@@ -305,7 +305,6 @@ function nestTokens(tokens) {
         collector.push(token);
     }
   }
-  console.log(nestedTokens)
   return nestedTokens;
 }
 /**

@@ -15,11 +15,13 @@
 
     console.log(
       mustache.render(
-        '{{#a}}{{b}}{{/a}}{{a}}',
+        '{{#a}}{{k}}{{/a}}{{a}}{{a.k}}',
         {
           a: {
-            age: 18
-          }
+            age: 18,
+            k: 66
+          },
+          b: 5656
         }
       )
     )
