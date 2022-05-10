@@ -465,5 +465,48 @@ class Scanner {
   }
 }
 
+class Context {
+  /**
+   * 
+   * @param {*} view 
+   * @param {Context} parentContext 
+   */
+  constructor(view, parentContext) {
+    this.view = view
+    this.cache = { '.': this.view }
+    this.parent = parentContext
+  }
 
-console.log(parseTemplate('你好，{{name}}！', ['{{', '}}']))
+  push(view) {
+    return new Context(view, this)
+  }
+
+  lookup(name) {
+    const cache = this.cache
+
+    let value
+    if (cache.hasOwnProperty(name)) {
+      value = cache[name]
+    } else {
+      const context = this
+      let intermediateValue, names, index, lookupHit = false
+
+      while (context) {
+        if (name.indexOf('.') > 0) {
+          intermediateValue = context.view
+          names = name.split('.')
+          index = 0
+
+          while (intermediateValue != null && index < names.length) {
+            if (index === names.length - 1) {
+              lookupHit = (
+                hasProperty(intermediateValue, names[index])
+                || primitiveHasOwnProperty(intermediateValue, names[index])
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
