@@ -468,7 +468,7 @@ class Scanner {
 class Context {
   /**
    * 
-   * @param {*} view 
+   * @param {*} view // 渲染值对象，比如 view = { name: 'Tom' }，那么调用 lookup('name') 会返回 'Tom'
    * @param {Context} parentContext 
    */
   constructor(view, parentContext) {
@@ -489,7 +489,10 @@ class Context {
       value = cache[name]
     } else {
       const context = this
-      let intermediateValue, names, index, lookupHit = false
+      let intermediateValue
+      let names
+      let index
+      let lookupHit = false
 
       while (context) {
         if (name.indexOf('.') > 0) {
