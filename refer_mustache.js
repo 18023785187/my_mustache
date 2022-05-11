@@ -405,23 +405,6 @@ Context.prototype.lookup = function lookup(name) {
         names = name.split('.');
         index = 0;
 
-        /**
-         * Using the dot notion path in `name`, we descend through the
-         * nested objects.
-         *
-         * To be certain that the lookup has been successful, we have to
-         * check if the last object in the path actually has the property
-         * we are looking for. We store the result in `lookupHit`.
-         *
-         * This is specially necessary for when the value has been set to
-         * `undefined` and we want to avoid looking up parent contexts.
-         *
-         * In the case where dot notation is used, we consider the lookup
-         * to be successful even if the last "object" in the path is
-         * not actually an object but a primitive (e.g., a string, or an
-         * integer), because it is sometimes useful to access a property
-         * of an autoboxed primitive, such as the length of a string.
-         **/
         while (intermediateValue != null && index < names.length) {
           if (index === names.length - 1)
             lookupHit = (
@@ -434,25 +417,6 @@ Context.prototype.lookup = function lookup(name) {
       } else {
         intermediateValue = context.view[name];
 
-        /**
-         * Only checking against `hasProperty`, which always returns `false` if
-         * `context.view` is not an object. Deliberately omitting the check
-         * against `primitiveHasOwnProperty` if dot notation is not used.
-         *
-         * Consider this example:
-         * ```
-         * Mustache.render("The length of a football field is {{#length}}{{length}}{{/length}}.", {length: "100 yards"})
-         * ```
-         *
-         * If we were to check also against `primitiveHasOwnProperty`, as we do
-         * in the dot notation case, then render call would return:
-         *
-         * "The length of a football field is 9."
-         *
-         * rather than the expected:
-         *
-         * "The length of a football field is 100 yards."
-         **/
         lookupHit = hasProperty(context.view, name);
       }
 
