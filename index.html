@@ -10,19 +10,30 @@
 
 <body>
   <div>666</div>
-  <script src="./mustache.js"></script>
+  <script src="./refer_mustache.js"></script>
   <script>
 
-    console.log(
-      mustache.render(
-        '{{#a}}{{b}}{{/a}}{{a}}',
-        {
-          a: {
-            age: 18
-          }
+    const view = {
+      a: {
+        b: {
+          c: 545445454
+        },
+        age: function () {
+          return this.a
         }
-      )
+      },
+      age: function () {
+        return a
+      },
+    }
+    const context = new Context(
+      view,
+      new Context({
+        k: 999
+      })
     )
+    console.log(context.lookup('k'))
+
   </script>
 </body>
 
