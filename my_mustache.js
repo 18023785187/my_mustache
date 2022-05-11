@@ -1,6 +1,6 @@
 /**
- * mustache 源码重写 ES6 + 注释版
- * http://github.com/18023785187/my_mustache
+ * @file mustache 源码重写 ES6 + 注释版
+ * @see http://github.com/18023785187/my_mustache
  */
 
 /**
@@ -67,7 +67,7 @@ function testRegExp(re, string) {
 }
 
 const nonSpaceRe = /\S/ // 匹配非空字符
-function isWhitespace(string) {
+function isWhitespace(string) { // 检查是否为空白字符串
   return !testRegExp(nonSpaceRe, string)
 }
 
@@ -104,7 +104,7 @@ const tagRe = /#|\^|\/|>|\{|&|=|!/ // 匹配 #、^、/、>、{、&、=、!
  * 扫描 template，根据 tags 及其规则生成 tokens
  * 
  *  tokens 是一个多维数组，其作为某段 template 片段的描述，类似于 AST 抽象语法树，
- * 将文字解析成 tokens 后可以根据里面 token 更好更有规律地处理转义后 template。
+ * 将文字解析成 tokens 后可以根据里面 token 更好更有规律地转义 template。
  * 
  * 例子：
  *  const template = '你好，{{name}}！'
@@ -120,10 +120,11 @@ const tagRe = /#|\^|\/|>|\{|&|=|!/ // 匹配 #、^、/、>、{、&、=、!
  *    startIdx 和 endIdx 为该 token 对于 template 的起始和结束的位置索引;
  * 
  *    实际上根据 type 的不同生成的 token 类型也会有所不同，比如某类 token 还会存储儿子 token，
- *  这就是为什么说 tokens 是一个多维数组的原因。具体的 token 生成规则和处理方法，请继续往下看。
+ *  这就是说为什么 tokens 是一个多维数组的原因。具体的 token 生成规则和处理方法，请继续往下看。
  * 
  * 注：下面所有例子和描述的 tags 以默认值 ['{{', '}}'] 为例
  * 
+ * @typedef {any[]} token
  * @param {string} template 字符串模版
  * @param {[string, string]} tags 标记
  * @returns {token[]} tokens
@@ -472,10 +473,13 @@ class Scanner {
   }
 }
 
+/**
+ * 
+ */
 class Context {
   /**
    * 
-   * @param {*} view // 渲染值对象，比如 view = { name: 'Tom' }，那么调用 lookup('name') 会返回 'Tom'
+   * @param {*} view // 渲染值，比如 view = { name: 'Tom' }，那么调用 lookup('name') 会返回 'Tom'
    * @param {Context} parentContext 
    */
   constructor(view, parentContext) {
@@ -494,9 +498,10 @@ class Context {
   }
 
   /**
+   * 创建一个 Context 实例，并把自身作为该实例的父 Context
    * 
-   * @param {*} view 
-   * @returns 
+   * @param {*} view 渲染值
+   * @returns {Context}
    */
   push(view) {
     return new Context(view, this)
@@ -583,4 +588,8 @@ class Context {
 
     return value
   }
+}
+
+class Writer {
+
 }

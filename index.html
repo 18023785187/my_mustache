@@ -27,12 +27,17 @@
       },
     }
     const context = new Context(
-      view,
+      544,
       new Context({
         k: 999
       })
     )
-    console.log(context.lookup('k'))
+    console.log(context.lookup('.'))
+
+    // console.log(mustache.render(
+    //   '{{.}}',
+    //   {}
+    // ))
 
   </script>
 </body>
