@@ -571,7 +571,7 @@ class Context {
           lookupHit = hasProperty(context.view, name)
         }
 
-        if(lookupHit) { // 如果找到了目标值，那么结束循环
+        if (lookupHit) { // 如果找到了目标值，那么结束循环
           value = intermediateValue
           break
         }
@@ -582,7 +582,7 @@ class Context {
       cache[name] = value // 向 cache 添加结果，下次遇到相同值直接取出
     }
 
-    if(isFunction(value)) { // 如果 value 是一个函数，那么调用该函数把返回值赋值给 value
+    if (isFunction(value)) { // 如果 value 是一个函数，那么调用该函数把返回值赋值给 value
       value = value.call(this.view)
     }
 
@@ -590,6 +590,74 @@ class Context {
   }
 }
 
+/**
+ * 
+ */
 class Writer {
+  /**
+   * 
+   */
+  constructor() {
+    // 创建缓存器，用于缓存转义后的模板 tokens
+    this.templateCache = {
+      _cache: {},
+      set: function set(key, value) {
+        this._cache[key] = value
+      },
+      get: function get(key) {
+        return this._cache[key]
+      },
+      clear: function clear() {
+        this._cache = {}
+      }
+    }
+  }
 
+  /**
+   * 清除缓存对象中的缓存值
+   */
+  clearCache() {
+    if (typeof this.templateCache !== 'undefined') {
+      this.templateCache.clear()
+    }
+  }
+
+  /**
+   * 查找缓存或调用 parseTemplate 方法
+   * @see parseTemplate
+   * @param {string} template 
+   * @param {[string, string]} tags 
+   * @returns {token[]}
+   */
+  parse(template, tags) {
+    const cache = this.templateCache // 获取缓存对象
+    const cacheKey = template + ':' + (tags || mustache.tags).join(':') // 创建缓存标识
+    const isCacheEnabled = typeof cache !== 'undefined' // 获取是否需要缓存标识
+    let tokens = isCacheEnabled ? cache.get(cacheKey) : undefined
+
+    if (tokens == undefined) { // 如果没有缓存或未开启获取，则调用 parseTemplate 得到 tokens
+      tokens = parseTemplate(template, tags)
+      isCacheEnabled && cache.set(cacheKey, tokens)
+    }
+    return tokens
+  }
+
+  render(template, view, partials, config) {
+    const tags = this.getConfigTags(config)
+    const tokens = this.parse(template, tags)
+    const context = (view instanceof Context) ? view : new Context(view, undefined)
+    return this.renderTokens(tokens, context, partials, template, config)
+  }
+
+  getConfigTags(config) {
+    if (isArray(config)) {
+      return config
+    }
+    else if (config && typeof config === 'object') {
+      return config.tags
+    }
+    else {
+      return undefined
+    }
+  }
 }

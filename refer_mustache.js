@@ -239,7 +239,7 @@ function parseTemplate(template, tags) {
   }
 
   stripSpace();
-  
+
   // Make sure there are no open sections when we're done.
   openSection = sections.pop();
 
@@ -508,6 +508,7 @@ Writer.prototype.parse = function parse(template, tags) {
  * escaping function is used as the default.
  */
 Writer.prototype.render = function render(template, view, partials, config) {
+  console.log(template, view, partials, config)
   var tags = this.getConfigTags(config);
   var tokens = this.parse(template, tags);
   var context = (view instanceof Context) ? view : new Context(view, undefined);

@@ -13,31 +13,7 @@
   <script src="./refer_mustache.js"></script>
   <script>
 
-    const view = {
-      a: {
-        b: {
-          c: 545445454
-        },
-        age: function () {
-          return this.a
-        }
-      },
-      age: function () {
-        return a
-      },
-    }
-    const context = new Context(
-      544,
-      new Context({
-        k: 999
-      })
-    )
-    console.log(context.lookup('.'))
-
-    // console.log(mustache.render(
-    //   '{{.}}',
-    //   {}
-    // ))
+    mustache.render('{{name}}', { name: 666 })
 
   </script>
 </body>
