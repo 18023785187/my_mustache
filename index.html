@@ -13,7 +13,9 @@
   <script src="./refer_mustache.js"></script>
   <script>
 
-    mustache.render('{{name}}', { name: 666 })
+   console.log(mustache.render('<%name%>', { name: 45456465 }, undefined, {
+     tags: ['<%', '%>']
+   }))
 
   </script>
 </body>

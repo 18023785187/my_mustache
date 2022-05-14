@@ -126,7 +126,7 @@ const tagRe = /#|\^|\/|>|\{|&|=|!/ // 匹配 #、^、/、>、{、&、=、!
  * 
  * @typedef {any[]} token
  * @param {string} template 字符串模版
- * @param {[string, string]} tags 标记
+ * @param {renderConfig} tags 标记
  * @returns {token[]} tokens
  */
 function parseTemplate(template, tags) {
@@ -591,7 +591,8 @@ class Context {
 }
 
 /**
- * 
+ * Writer 整合了各类工具，集成了 mustache 的各类方法，可以针对 token 的类型处理模板，为核心类。
+ * Writer 还具有缓存功能，能够将相同条件下生成的 tokens 进行缓存，在下次遇到相同条件时取出缓存值即可。
  */
 class Writer {
   /**
@@ -623,10 +624,10 @@ class Writer {
   }
 
   /**
-   * 查找缓存或调用 parseTemplate 方法
+   * 查找缓存或调用 parseTemplate 方法将 template 转为 tokens
    * @see parseTemplate
    * @param {string} template 
-   * @param {[string, string]} tags 
+   * @param {renderConfig} tags 
    * @returns {token[]}
    */
   parse(template, tags) {
@@ -642,6 +643,18 @@ class Writer {
     return tokens
   }
 
+  /**
+   * 把 tokens 转换为结果视图
+   * @typedef {{ 
+   *  escape?: (value: string) => any,
+   *  tags?: [string, string],
+   * } | [string, string] | undefined} renderConfig 
+   * @param {string} template 模板
+   * @param {any} view 渲染视图
+   * @param {* | undefined} partials 
+   * @param {renderConfig} config 配置项
+   * @returns {string}
+   */
   render(template, view, partials, config) {
     const tags = this.getConfigTags(config)
     const tokens = this.parse(template, tags)
@@ -649,6 +662,176 @@ class Writer {
     return this.renderTokens(tokens, context, partials, template, config)
   }
 
+  /**
+   * 根据 token 的标识用不同的方法处理 token
+   * @param {token} tokens 
+   * @param {Context} context 
+   * @param {* | undefined} partials 
+   * @param {string} originalTemplate template
+   * @param {renderConfig} config 
+   * @returns {string}
+   */
+  renderTokens(tokens, context, partials, originalTemplate, config) {
+    let buffer = '' // 结果，由 token 和 context 根据规则生成的文本内容
+
+    let token
+    let symbol
+    let value
+    for (let i = 0, numTokens = tokens.length; i < numTokens; ++i) {
+      value = undefined // 重置 value
+      token = tokens[i] // 获取当前 token
+      symbol = token[0] // 获取 token 标识
+
+      switch (symbol) { // 根据标识决定使用何种方式处理 token
+        case '#': // {{#name}}
+          value = this.renderSection(token, context, partials, originalTemplate, config)
+          break
+        case '^': // {{^name}}
+          value = this.renderInverted(token, context, partials, originalTemplate, config)
+          break
+        case '>': // {{>name}}
+          value = this.renderPartial(token, context, partials, config)
+          break
+        case '&': // {{&name}} 或 {{{name}}}
+          value = this.unescapedValue(token, context)
+          break
+        case 'name': // {{name}}
+          value = this.escapedValue(token, context, config)
+          break
+        case 'text': // text
+          value = this.rawValue(token)
+          break
+      }
+
+      if (value !== undefined) {
+        buffer += value
+      }
+    }
+
+    return buffer
+  }
+
+  /**
+   * 针对 {{#name}} 的处理
+   * @param {token} token 
+   * @param {Context} context 
+   * @param {* | undefined} partials 
+   * @param {string} originalTemplate template
+   * @param {renderConfig} config 
+   * @returns {string | undefined}
+   */
+  renderSection(token, context, partials, originalTemplate, config) {
+    const self = this
+    let buffer = ''
+    let value = context.lookup(token[1]) // 获取当前的作用域值
+
+    /**
+     * 当 value 为函数时，该方法充当 value 的渲染器
+     * @param {string} template 
+     * @returns {string}
+     */
+    function subRender(template) {
+      return self.render(template, context, partials, config)
+    }
+
+    if (!value) return // 当值为 falsy 类型时，将不会渲染任何内容
+
+    if (isArray(value)) { // 当 value 是一个数组时，那么会遍历渲染子模板
+      for (let j = 0, valueLength = value.length; j < valueLength; ++j) {
+        // 把子 token 和当前项作用域交给 renderTokens 进行渲染
+        buffer += this.renderTokens(token[4], context.push(value[j]), partials, originalTemplate, config)
+      }
+    } else if (['object', 'string', 'number'].includes(typeof value)) { // 当 value 是对象、字符串、数字类型时，把 value 当作作用域渲染子 token
+      buffer += this.renderTokens(token[4], context.push(value), partials, originalTemplate, config)
+    } else if (isFunction(value)) { // 当 value 是方法时，会根据该方法渲染模板
+      if (typeof originalTemplate !== 'string') {
+        throw new Error('Cannot use higher-order sections without the original template')
+      }
+
+      // 调用 value 获取渲染结果，第一个参数为模板中此段渲染部分的字符串，第二个参数是渲染器
+      value = value.call(context.view, originalTemplate.slice(token[3], token[5]), subRender)
+
+      if (value != null) {
+        buffer += value
+      }
+    } else { // 当 value 为 true，那么渲染子 token
+      buffer += this.renderTokens(token[4], context, partials, originalTemplate, config)
+    }
+    return buffer
+  }
+
+  /**
+   * 针对 {{^name}} 的处理
+   * @param {token} token 
+   * @param {Context} context 
+   * @param {* | undefined} partials 
+   * @param {string} originalTemplate template 
+   * @param {renderConfig} config 
+   * @returns {string | undefined}
+   */
+  renderInverted(token, context, partials, originalTemplate, config) {
+    const value = context.lookup(token[1]) // 获取当前的作用域值
+
+    if (!value || (isArray(value) && value.length === 0)) { // 如果 value 是 falsy 或空数组时才会渲染子 token
+      return this.renderTokens(token[4], context, partials, originalTemplate, config)
+    }
+  }
+
+  /**
+   * 针对 {{^name}} 或 {{{name}}} 的处理
+   * @param {token} token 
+   * @param {Context} context 
+   * @param {* | undefined} partials 
+   * @param {renderConfig} config 
+   * @returns {string | undefined}
+   */
+  renderPartial(token, context, partials, config) {
+
+  }
+
+  /**
+   * 针对 {{&name}} 或 {{{name}}} 的处理
+   * @param {token} token 
+   * @param {Context} context 
+   * @returns {string | undefined}
+   */
+  unescapedValue(token, context) {
+    const value = context.lookup(token[1]) // 获取当前的作用域值
+    if (value != null) {
+      return value
+    }
+  }
+
+  /**
+   * 针对 {{name}} 的处理
+   * @param {token} token 
+   * @param {Context} context 
+   * @param {renderConfig} config 
+   * @returns {string | undefined}
+   */
+  escapedValue(token, context, config) {
+    const escape = this.getConfigEscape(config) || mustache.escape // 获取文本转义方法
+    const value = context.lookup(token[1]) // 获取当前的作用域值
+    if (value != null) {
+      // 如果 value 是数字类型并且转义方法是默认的转义方法，则把 value 转为字符串返回，否则调用自定义的转义方法返回
+      return (typeof value === 'number' && escape === mustache.escape) ? String(value) : escape(value)
+    }
+  }
+
+  /**
+   * 针对 text 的处理
+   * @param {token} token 
+   * @returns {string}
+   */
+  rawValue(token) {
+    return token[1]
+  }
+
+  /**
+   * 获取自定义标签
+   * @param {renderConfig} config 
+   * @returns {renderConfig | renderConfig.tags | undefined}
+   */
   getConfigTags(config) {
     if (isArray(config)) {
       return config
@@ -660,4 +843,86 @@ class Writer {
       return undefined
     }
   }
+
+  /**
+   * 获取自定义转义器
+   * @param {renderConfig} config 
+   * @returns {renderConfig.escape | undefined}
+   */
+  getConfigEscape(config) {
+    // 只有 config 是一个对象时，才会去获取 config.escape
+    if (config && typeof config === 'object' && !isArray(config)) {
+      return config.escape
+    }
+    else {
+      return undefined
+    }
+  }
 }
+
+const defaultWriter = new Writer()
+/**
+ * 导出的 mustache 主体
+ */
+const mustache = {
+  name: 'mustache.js',
+  version: '?.?.?',
+  tags: ['{{', '}}'], // 默认标签
+  clearCache: undefined,
+  escape: undefined,
+  parse: undefined,
+  render: undefined,
+  Scanner: undefined,
+  Context: undefined,
+  Writer: undefined,
+  set templateCache(cache) {
+    defaultWriter.templateCache = cache
+  },
+  get templateCache() {
+    return defaultWriter.templateCache
+  },
+}
+
+/**
+ * @see {Writer.clearCache}
+ */
+mustache.clearCache = function clearCache() {
+  return defaultWriter.clearCache()
+}
+
+/**
+ * @see {Writer.parse}
+ */
+mustache.parse = function parse(template, tags) {
+  return defaultWriter.parse(template, tags)
+}
+
+/**
+ * @see {Writer.render}
+ */
+mustache.render = function render(template, view, partials, config) {
+  if (typeof template !== 'string') {
+    throw new TypeError('Invalid template! Template should be a "string" ' +
+      'but "' + typeStr(template) + '" was given as the first ' +
+      'argument for mustache#render(template, view, partials)')
+  }
+
+  return defaultWriter.render(template, view, partials, config)
+}
+
+/**
+ * @see {escapeHtml}
+ */
+mustache.escape = escapeHtml
+/**
+ * @see {Scanner}
+ */
+mustache.Scanner = Scanner
+/**
+ * @see {Context}
+ */
+mustache.Context = Context
+/**
+ * @see {Writer}
+ */
+mustache.Writer = Writer

@@ -508,7 +508,6 @@ Writer.prototype.parse = function parse(template, tags) {
  * escaping function is used as the default.
  */
 Writer.prototype.render = function render(template, view, partials, config) {
-  console.log(template, view, partials, config)
   var tags = this.getConfigTags(config);
   var tokens = this.parse(template, tags);
   var context = (view instanceof Context) ? view : new Context(view, undefined);
@@ -626,6 +625,7 @@ Writer.prototype.unescapedValue = function unescapedValue(token, context) {
 };
 
 Writer.prototype.escapedValue = function escapedValue(token, context, config) {
+  console.log(config)
   var escape = this.getConfigEscape(config) || mustache.escape;
   var value = context.lookup(token[1]);
   if (value != null)
@@ -637,6 +637,7 @@ Writer.prototype.rawValue = function rawValue(token) {
 };
 
 Writer.prototype.getConfigTags = function getConfigTags(config) {
+  console.log(config)
   if (isArray(config)) {
     return config;
   }
