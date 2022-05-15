@@ -1,0 +1,29 @@
+{
+  "name": "my_mustache",
+  "version": "1.0.0",
+  "description": "mustache 源码学习",
+  "main": "build/mustache.js",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "cross-env NODE_ENV=production webpack --config scripts/build.js",
+    "dev": "cross-env NODE_ENV=development webpack serve --config scripts/start.js",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "mustache"
+  ],
+  "author": "hym20000418",
+  "license": "ISC",
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "html-webpack-plugin": "^5.5.0",
+    "terser-webpack-plugin": "^5.3.1",
+    "ts-loader": "^9.2.8",
+    "typescript": "^4.6.3",
+    "webpack": "^5.72.0",
+    "webpack-cli": "^4.9.2",
+    "webpack-dev-server": "^4.8.1",
+    "webpack-merge": "^5.8.0"
+  }
+}

@@ -46,7 +46,9 @@ function hasProperty(obj, propName) {
 }
 
 /**
- * 判断一个 primitive 是否不为 null 且不为 object 且有 hasProperty 并且 propName 是 primitive 的属性
+ * 判断 primitive 是否不为 null 且不为 object 且有 hasProperty 并且 propName 是 primitive 的属性
+ * 
+ * 例如 string 类型将符合要求
  * 
  * @param {any} primitive 
  * @param {string} propName 
@@ -67,7 +69,7 @@ function testRegExp(re, string) {
 }
 
 const nonSpaceRe = /\S/ // 匹配非空字符
-function isWhitespace(string) { // 检查是否为空白字符串
+function isWhitespace(string) { // 检查一个值是否为空白字符串
   return !testRegExp(nonSpaceRe, string)
 }
 
@@ -81,7 +83,6 @@ const entityMap = { // 符号转义表
   '`': '&#x60;',
   '=': '&#x3D;',
 }
-
 /**
  * 转义 html 文本中的符号，该方法会根据上面的 entityMap 替换
  * @param {string} string 
@@ -124,9 +125,10 @@ const tagRe = /#|\^|\/|>|\{|&|=|!/ // 匹配 #、^、/、>、{、&、=、!
  * 
  * 注：下面所有例子和描述的 tags 以默认值 ['{{', '}}'] 为例
  * 
+ * @typedef {[string, string]} tags
  * @typedef {any[]} token
  * @param {string} template 字符串模版
- * @param {renderConfig} tags 标记
+ * @param {tags | undefined} tags 标记
  * @returns {token[]} tokens
  */
 function parseTemplate(template, tags) {
@@ -134,12 +136,12 @@ function parseTemplate(template, tags) {
     return []
   }
   let lineHasNonSpace = false // 当前行是否有非空格
-  const sections = [] // 用于存储 {{#names}}、{{^names}} 标记
+  const sections = [] // 存储 {{#names}}、{{^names}} 标记，用于判断这些标记是否有匹配 {{/names}}
   const tokens = [] // token 数组
-  let spaces = [] // 存储在当前行中每个空格的 token 索引，当遇到 {{#names}} 时且当前项全是空格时，会把存储的索引对应的 token 全部删除
+  let spaces = [] // 存储在当前行中每个空格的 token 索引，当遇到 {{#names}} 时且当前项全是空格时，会把 tokens 中对应 spaces 索引的 token 全部删除
   let hasTag = false // 当前行是否有标签 {{}}
   let nonSpace = false // 是否有非空格
-  let indentation = ''
+  let indentation = '' // 当前行收集到的缩进，又称空白字符串
   let tagIndex = 0 // 每一行文本所遇到的 {{}} 数量
 
   /**
@@ -167,19 +169,20 @@ function parseTemplate(template, tags) {
 
   let openingTagRe // 开口标签正则
   let closingTagRe // 闭口标签正则
-  let closingCurlyRe // 闭口标签加 { 正则，比如闭口标签为 }}，那么该正则为 }}}
+  let closingCurlyRe // } + closingTagRe 正则，比如闭口标签为 }}，那么该正则为 }}}
   /**
-   * 处理 tags，根据 tags 生成对应的正则表达式，tags 必须为字符串或数组，例如 ['{{', '}}']
+   * 处理 tags，根据 tags 生成对应的正则表达式，tags 必须为数组或字符串，例如 ['{{', '}}'] 或 '{{ }}'
    * 
    * 为什么会有字符串？因为在遇到 {{=<% %>=}} 的时候会把 '<% %>' 作为参数传入，这时就需要将其解析为标签
-   * @param {string | [string, string]} tagsToCompile 
+   * 
+   * @param {string | tags} tagsToCompile 
    */
   function compileTags(tagsToCompile) {
     if (typeof tagsToCompile === 'string') {
       tagsToCompile = tagsToCompile.split(spaceRe, 2) // 生成至少一个空格作为分隔符，长度为 2 的数组，例如： '{{  }}' -> ['{{', '}}']
     }
 
-    if (!isArray(tagsToCompile) && tagsToCompile.length !== 2) { // 如果 tagsToCompile 不是数组或数组长度不等于 2，说明不符合条件
+    if (!isArray(tagsToCompile) && tagsToCompile.length !== 2) { // 如果 tagsToCompile 不是数组或数组长度不等于 2，说明不符合条件，抛出错误
       throw new Error('Invalid tags: ' + tagsToCompile)
     }
 
@@ -188,29 +191,32 @@ function parseTemplate(template, tags) {
     closingCurlyRe = new RegExp('\\s*' + escapeRegExp('}' + tagsToCompile[1])) // /\s*\}\}\}/
   }
 
-  compileTags(tags || mustache.tags) // 初始编译一个 tags 确定标签的样式
+  compileTags(tags || mustache.tags) // 初始化编译一个 tags 确定标签的样式
 
   const scanner = new Scanner(template) // 创建扫描器，下面循环将围绕扫描器收集 token
 
-  let start // 每次扫描一对 {{}} 时扫描器 scanner 的起始指针
+  let start // 每次扫描一对 {{}} 即每次循环时，扫描器 scanner 的当前指针
   let type // 每个标签的类型，后面会根据类型去处理 token
   let value // {{ 或 }} 前的文本，比如：'hello, {{name}}' 对应的文本是 hello, 和 name
   let chr // 文本中每一个字符
   let token // 存储的信息标识
-  let openSection // 每次遇到 {{/names}} 时从 sections 弹出开口标签
+  let openSection // 每次遇到 {{/names}} 时从 sections 弹出的开口标签
   while (!scanner.eos()) { // 循环使扫描器扫描完成，每次循环都会扫描出一对 {{}}
     start = scanner.pos
 
     value = scanner.scanUntil(openingTagRe) // 获取 {{ 前或全部文本
 
-    if (value) {
+    if (value) { // 循环将文本转换成单字符 token，方便后续处理
       for (let i = 0, valueLength = value.length; i < valueLength; ++i) {
         chr = value.charAt(i) // 获取当前字符
 
-        if (isWhitespace(chr)) { // 如果该字符为空白字符，记录该空白 token 的位置
+        if (isWhitespace(chr)) { // 如果该字符为空白字符，记录该空白 token 的位置，同时增加缩进的长度
           spaces.push(tokens.length)
           indentation += chr
-        } else { // 如果有非空白字符，记录当前行有非空格字符
+        } else {
+          /**
+           * @see {Writer.indentPartial} 如果有非空白字符，记录当前行有非空格字符，缩进长度也需增加
+           */
           nonSpace = true
           lineHasNonSpace = true
           indentation += ' '
@@ -238,7 +244,10 @@ function parseTemplate(template, tags) {
     scanner.scan(whiteRe) // 跳过空格
 
     // 根据 type 收集 value
-    if (type === '=') {
+    if (type === '=') { // type 为 =，说明需要转换标签样式，收集即将需要转换的样式
+      /**
+       * @see {compileTags}
+       */
       value = scanner.scanUntil(equalsRe)
       scanner.scan(equalsRe)
       scanner.scanUntil(closingTagRe)
@@ -246,7 +255,7 @@ function parseTemplate(template, tags) {
       value = scanner.scanUntil(closingCurlyRe) // 获取 {{{name}}} 中的 name
       scanner.scan(curlyRe) // 跳过 }
       scanner.scanUntil(closingTagRe) // 跳过 }}
-      type = '&'
+      type = '&' // 无论是 {{&name}} 或 {{{name}}}，其类型都是 &
     } else {
       value = scanner.scanUntil(closingTagRe) // 收集 {{name}} 中的 name
     }
@@ -297,7 +306,7 @@ function parseTemplate(template, tags) {
 }
 
 /**
- * 把连续序号的 token 合并到一个 token 中。
+ * 把连续序号的散列 token 合并到一个 token 中。
  * 
  * 例子：
  *  const tokens = [['text', 'T', 0, 1], ['text', 'o', 1, 2], ['text', 'm', 2, 3]]
@@ -474,12 +483,14 @@ class Scanner {
 }
 
 /**
+ * 存储值，可以根据对应规则的标识取出特定值。
  * 
+ * 比如：初始化时存储的 view 是 'Tom'，那么可以调用 context.lookup('.') 取出 'Tom'，具体规则请看 lookup 方法
  */
 class Context {
   /**
    * 
-   * @param {*} view // 渲染值，比如 view = { name: 'Tom' }，那么调用 lookup('name') 会返回 'Tom'
+   * @param {any} view // 渲染值，比如 view = { name: 'Tom' }，那么调用 lookup('name') 会返回 'Tom'
    * @param {Context} parentContext 
    */
   constructor(view, parentContext) {
@@ -500,7 +511,7 @@ class Context {
   /**
    * 创建一个 Context 实例，并把自身作为该实例的父 Context
    * 
-   * @param {*} view 渲染值
+   * @param {any} view 渲染值
    * @returns {Context}
    */
   push(view) {
@@ -525,7 +536,7 @@ class Context {
     if (cache.hasOwnProperty(name)) { // 如果在之前缓存有该值，那么直接取到
       value = cache[name]
     } else {
-      let context = this //
+      let context = this // 当前作用域
       let intermediateValue // 过渡值，类似于数组两个数交换时定义的一个 temp
       let names // 分割后的 name 数组
       let index // 指向 names 的索引
@@ -595,9 +606,6 @@ class Context {
  * Writer 还具有缓存功能，能够将相同条件下生成的 tokens 进行缓存，在下次遇到相同条件时取出缓存值即可。
  */
 class Writer {
-  /**
-   * 
-   */
   constructor() {
     // 创建缓存器，用于缓存转义后的模板 tokens
     this.templateCache = {
@@ -627,7 +635,7 @@ class Writer {
    * 查找缓存或调用 parseTemplate 方法将 template 转为 tokens
    * @see parseTemplate
    * @param {string} template 
-   * @param {renderConfig} tags 
+   * @param {tags | undefined} tags 
    * @returns {token[]}
    */
   parse(template, tags) {
@@ -647,12 +655,13 @@ class Writer {
    * 把 tokens 转换为结果视图
    * @typedef {{ 
    *  escape?: (value: string) => any,
-   *  tags?: [string, string],
-   * } | [string, string] | undefined} renderConfig 
+   *  tags?: tags,
+   * } | undefined} renderConfig 
+   * @typedef {{ [key: string]: any } | ((name: string) => string) | undefined} renderPartials
    * @param {string} template 模板
    * @param {any} view 渲染视图
-   * @param {* | undefined} partials 
-   * @param {renderConfig} config 配置项
+   * @param {renderPartials} partials 子模板对象或方法
+   * @param {renderConfig | undefined} config 配置项
    * @returns {string}
    */
   render(template, view, partials, config) {
@@ -664,11 +673,11 @@ class Writer {
 
   /**
    * 根据 token 的标识用不同的方法处理 token
-   * @param {token} tokens 
+   * @param {token[]} tokens 
    * @param {Context} context 
-   * @param {* | undefined} partials 
+   * @param {renderPartials} partials 
    * @param {string} originalTemplate template
-   * @param {renderConfig} config 
+   * @param {renderConfig | undefined} config 
    * @returns {string}
    */
   renderTokens(tokens, context, partials, originalTemplate, config) {
@@ -715,9 +724,9 @@ class Writer {
    * 针对 {{#name}} 的处理
    * @param {token} token 
    * @param {Context} context 
-   * @param {* | undefined} partials 
+   * @param {renderPartials} partials 
    * @param {string} originalTemplate template
-   * @param {renderConfig} config 
+   * @param {renderConfig | undefined} config 
    * @returns {string | undefined}
    */
   renderSection(token, context, partials, originalTemplate, config) {
@@ -764,9 +773,9 @@ class Writer {
    * 针对 {{^name}} 的处理
    * @param {token} token 
    * @param {Context} context 
-   * @param {* | undefined} partials 
+   * @param {renderPartials} partials 
    * @param {string} originalTemplate template 
-   * @param {renderConfig} config 
+   * @param {renderConfig | undefined} config 
    * @returns {string | undefined}
    */
   renderInverted(token, context, partials, originalTemplate, config) {
@@ -778,22 +787,69 @@ class Writer {
   }
 
   /**
-   * 针对 {{^name}} 或 {{{name}}} 的处理
+   * 处理原模板中子模板前的空白字符。
+   * 
+   *  比如原模板 template = ' {{>childTemplate}}'，子模板 childTemplate = 'I\nLove\nU'，
+   * 那么处理后得到的结果如下：
+   * 
+   * ' I\n Love\n U'
+   * 
+   *  还有一种情况是原模板前面有非空白字符，比如 template = ' Hi,{{>childTemplate}}'，
+   * 那么处理后得到的结果如下：
+   * 
+   * ' Hi,I\n    Love\n    U'
+   * 
+   * @param {string} partial 子模板
+   * @param {string} indentation 空白字符，包含 、\t、\n
+   * @param {boolean} lineHasNonSpace 原模板当前行是否有非空格
+   * @returns {string}
+   */
+  indentPartial(partial, indentation, lineHasNonSpace) {
+    const filteredIndentation = indentation.replace(/[^ \t]/g, '') // 把换行符去掉，只保留缩进和空格
+    const partialByNl = partial.split('\n') // 子模板以行分组处理
+
+    for (let i = 0; i < partialByNl.length; i++) {
+      // 如果当前行有非空格，那么第一行不用处理，否则统一在每行都加上 indentation
+      if (partialByNl[i].length && (i > 0 || !lineHasNonSpace)) {
+        partialByNl[i] = filteredIndentation + partialByNl[i]
+      }
+    }
+
+    return partialByNl.join('\n')
+  }
+
+  /**
+   * 针对 {{>name}} 的处理
    * @param {token} token 
    * @param {Context} context 
-   * @param {* | undefined} partials 
-   * @param {renderConfig} config 
+   * @param {renderPartials} partials 
+   * @param {renderConfig | undefined} config 
    * @returns {string | undefined}
    */
   renderPartial(token, context, partials, config) {
+    if (!partials) return // 如果子模板对象或方法为空，则不渲染任何内容
+    const tags = this.getConfigTags(config) // 获取标签类型
 
+    // 获取子模板，当 partials 为方法时，则调用方法，否则从对象中获取
+    const value = isFunction(partials) ? partials(token[1]) : partials[token[1]]
+    if (value != null) {
+      const lineHasNonSpace = token[6] // 原模板当前行是否有非空格
+      const tagIndex = token[5] // 原模板当前行的标签数
+      const indentation = token[4] // 当前 token 在原模板当前行中收集到的缩进
+      let indentedValue = value // 处理缩进后得到的子模板
+      if (tagIndex === 0 && indentation) { // 只有在原模板当前行没有标签，才会去处理缩进
+        indentedValue = this.indentPartial(value, indentation, lineHasNonSpace)
+      }
+      const tokens = this.parse(indentedValue, tags)
+      return this.renderTokens(tokens, context, partials, indentedValue, config)
+    }
   }
 
   /**
    * 针对 {{&name}} 或 {{{name}}} 的处理
    * @param {token} token 
    * @param {Context} context 
-   * @returns {string | undefined}
+   * @returns {any | undefined}
    */
   unescapedValue(token, context) {
     const value = context.lookup(token[1]) // 获取当前的作用域值
@@ -806,8 +862,8 @@ class Writer {
    * 针对 {{name}} 的处理
    * @param {token} token 
    * @param {Context} context 
-   * @param {renderConfig} config 
-   * @returns {string | undefined}
+   * @param {renderConfig | undefined} config 
+   * @returns {any | string | undefined}
    */
   escapedValue(token, context, config) {
     const escape = this.getConfigEscape(config) || mustache.escape // 获取文本转义方法
@@ -829,14 +885,14 @@ class Writer {
 
   /**
    * 获取自定义标签
-   * @param {renderConfig} config 
-   * @returns {renderConfig | renderConfig.tags | undefined}
+   * @param {renderConfig | tags | undefined} config 
+   * @returns {tags | undefined}
    */
   getConfigTags(config) {
-    if (isArray(config)) {
+    if (isArray(config)) { // 当 config 是数组时，将当作标签直接返回
       return config
     }
-    else if (config && typeof config === 'object') {
+    else if (config && typeof config === 'object') { // 当 config 时对象时，返回 config.tags
       return config.tags
     }
     else {
@@ -846,7 +902,7 @@ class Writer {
 
   /**
    * 获取自定义转义器
-   * @param {renderConfig} config 
+   * @param {renderConfig | undefined} config 
    * @returns {renderConfig.escape | undefined}
    */
   getConfigEscape(config) {
@@ -862,6 +918,7 @@ class Writer {
 
 const defaultWriter = new Writer()
 /**
+ * @module mustache
  * 导出的 mustache 主体
  */
 const mustache = {
