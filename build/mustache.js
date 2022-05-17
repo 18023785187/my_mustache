@@ -49,7 +49,7 @@ __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  "default": () => (/* binding */ src)
+  "mustache": () => (/* reexport */ mustache)
 });
 
 ;// CONCATENATED MODULE: ./src/utils.ts
@@ -898,7 +898,7 @@ function escapeHtml(string) {
     });
 }
 const defaultWriter = new Writer();
-/* harmony default export */ const mustache = ({
+const mustache = {
     name: 'mustache.js',
     version: '?.?.?',
     tags: ['{{', '}}'],
@@ -926,7 +926,7 @@ const defaultWriter = new Writer();
     get templateCache() {
         return defaultWriter.templateCache;
     },
-});
+};
 
 ;// CONCATENATED MODULE: ./src/index.ts
 /**
@@ -934,7 +934,6 @@ const defaultWriter = new Writer();
  * @see http://github.com/18023785187/my_mustache
  */
 
-/* harmony default export */ const src = (mustache);
 
 /******/ 	return __webpack_exports__;
 /******/ })()

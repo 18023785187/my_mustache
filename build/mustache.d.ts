@@ -28,7 +28,7 @@ export declare type token = any[];
  * @returns {string}
  */
 declare function escapeHtml(string: string): string;
-declare const _default: {
+export declare const mustache: {
     name: string;
     version: string;
     tags: [string, string];
@@ -48,4 +48,4 @@ declare const _default: {
         clear: () => void;
     };
 };
-export default _default;
+export {};

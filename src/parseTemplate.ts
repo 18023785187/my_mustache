@@ -1,4 +1,4 @@
-import mustache, { tags, token } from './mustache'
+import { mustache, tags, token } from './mustache'
 import { isArray } from './utils'
 import Scanner from './Scanner'
 

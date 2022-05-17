@@ -1,4 +1,4 @@
-import mustache, { token, renderConfig, renderPartials, tags } from './mustache'
+import { mustache, token, renderConfig, renderPartials, tags } from './mustache'
 import parseTemplate from './parseTemplate'
 import Context from './Context'
 import { isArray, isFunction } from './utils'

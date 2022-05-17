@@ -59,7 +59,7 @@ function escapeHtml(string: string): string {
 
 const defaultWriter = new Writer()
 
-export default {
+export const mustache = {
   name: 'mustache.js',
   version: '?.?.?',
   tags: ['{{', '}}'] as [string, string], // 默认标签
