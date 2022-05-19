@@ -5,36 +5,37 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{=<% %>=}}</title>
+  <title>{{name}}和{{{name}}}</title>
 </head>
 
 <body>
+  <h4></h4>
+  <h4></h4>
   <h4></h4>
   <script src="../../build/mustache.js"></script>
   <script>
     console.log(`%c                                                                              
 /**                                                                           
- * {{=<% %>=}} 用于转换标签样式                                                
+ * {{name}} 会对特殊符号进行转义，而 {{{name}}} 则不会                           
  *                                                                            
- * 当该语法独占一行且当前行只有空白时，那么该行不渲染，以下是该情况的例子           
+ * 以下是该情况的例子                                                           
  **/                                                                          
                                                                               
 `, 'color: rgb(195, 96, 44);background-color: rgb(30,30,30);')
 
     mustache = mustache.mustache
 
-    const template = `Hi! {{you}}, I'm
-    {{=<% %>=}}
-<% me %>`
-    const view = {
-      you: 'Twinkle',
-      me: 'Tom'
-    }
-    const res = mustache.render(template, view)
+    const res1 = mustache.render('{{  text }}', { text: '<div>text</div>' })
+    const res2 = mustache.render('{{{  text }}}', { text: '<div>text</div>' })
+    const res3 = mustache.render('{{&  text }}', { text: '<div>text</div>' })
 
-    document.getElementsByTagName('h4')[0].textContent = res
+    document.getElementsByTagName('h4')[0].textContent = res1
+    document.getElementsByTagName('h4')[1].textContent = res2
+    document.getElementsByTagName('h4')[2].textContent = res3
 
-    console.log(res)
+    console.log(res1, 'res1')
+    console.log(res2, 'res2')
+    console.log(res3, 'res3')
   </script>
 </body>
 

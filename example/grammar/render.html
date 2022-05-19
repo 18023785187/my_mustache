@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>render</title>
+</head>
+
+<body>
+  <h4></h4>
+  <h4></h4>
+  <h4></h4>
+  <h4></h4>
+  <h4></h4>
+  <h4></h4>
+  <script src="../../build/mustache.js"></script>
+  <script>
+    console.log(`%c                                                                              
+/**                                                                           
+ * 当模版渲染时，标签 {{name}} 中的值会渲染成字符串，即调用 toString 方法          
+ *                                                                            
+ * 渲染规则：                                                                  
+ *                                                                            
+ *  1、当标签值存在作用域链即 a.b.c 的形式时，会沿着作用域链寻找到 c 并取值。       
+ *  2、当标签值取到是一个方法时，会调用此方法取其返回值。                          
+ *  3、当标签值为 . 时，会直接取整个视图作为值。                                  
+ *  4、取出的值会调用 toString 方法进行渲染，如果值是 falsy 类型或空数组则不渲染。  
+ **/                                                                          
+                                                                              
+`, 'color: rgb(195, 96, 44);background-color: rgb(30,30,30);')
+
+    mustache = mustache.mustache
+
+    const res1 = mustache.render('{{name}}', { name: 'Tom' })
+    const res2 = mustache.render('{{a.b.c.d.name}}', { a: { b: { c: { d: { name: 'Tom' } } } } })
+    const res3 = mustache.render('{{obj}}', { obj: { name: 'Tom' } })
+    const res4 = mustache.render('{{arr}}', { arr: [1, 2] })
+    const res5 = mustache.render('{{fn}}', { fn() { return 'Tom' } })
+    const res6 = mustache.render('{{.}}', 'Tom')
+
+    document.getElementsByTagName('h4')[0].textContent = '{{name}}：' + res1
+    document.getElementsByTagName('h4')[1].textContent = '{{a.b.c.d.name}}：' + res2
+    document.getElementsByTagName('h4')[2].textContent = '渲染值是对象：' + res3
+    document.getElementsByTagName('h4')[3].textContent = '渲染值是数组：' + res4
+    document.getElementsByTagName('h4')[4].textContent = '渲染值是方法：' + res5
+    document.getElementsByTagName('h4')[5].textContent = '{{.}}：' + res6
+
+    console.log(res1, '{{name}}')
+    console.log(res2, '{{a.b.c.d.name}}')
+    console.log(res3, '{{obj}}')
+    console.log(res4, '{{arr}}')
+    console.log(res5, '{{fn}}')
+    console.log(res6, '{{.}}')
+  </script>
+</body>
+
+</html>
